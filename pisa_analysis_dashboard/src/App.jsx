@@ -51,7 +51,7 @@ const PISADashboard = () => {
     <div className="flex flex-col w-full min-h-screen bg-gray-50 font-sans">
       <header className="bg-gradient-to-r from-blue-800 to-blue-600 text-white p-6 shadow-lg">
         <div className="max-w-6xl mx-auto">
-          <h1 className="text-3xl font-bold tracking-tight">PISA 2018 Data Analysis Dashboard</h1>
+          <h1 className="text-3xl font-bold tracking-tight">PISA 2022 Data Analysis Dashboard</h1>
           <p className="mt-2 text-blue-100 text-lg">Interactive visualizations of key PISA performance indicators</p>
         </div>
       </header>
@@ -105,7 +105,7 @@ const PISADashboard = () => {
             <div>
               <h2 className="text-2xl font-bold text-gray-800 mb-4">Top Performing Countries across Subjects</h2>
               <p className="mb-6 text-gray-600 leading-relaxed">
-                The chart below shows the performance of top countries in PISA 2018 across Mathematics, Reading, and Science. 
+                The chart below shows the performance of top countries in PISA 2022 across Mathematics, Reading, and Science. 
                 East Asian countries consistently lead in Mathematics and Science, while European countries perform strongly in Reading.
               </p>
               <div className="h-96 mb-8">
@@ -319,13 +319,13 @@ const PISADashboard = () => {
         <div className="max-w-6xl mx-auto px-6 md:px-8">
           <div className="grid md:grid-cols-2 gap-6">
             <div>
-              <h3 className="text-lg font-semibold mb-3">PISA 2018 Data Analysis Project</h3>
+              <h3 className="text-lg font-semibold mb-3">PISA 2022 Data Analysis Project</h3>
               <p className="text-gray-300">Created with Recharts and React</p>
             </div>
             <div>
               <h3 className="text-lg font-semibold mb-3">Data Sources</h3>
-              <p className="text-gray-300">OECD Programme for International Student Assessment (PISA) 2018</p>
-              <p className="text-gray-400 text-sm mt-2">All data and visualizations are based on official PISA 2018 results</p>
+              <p className="text-gray-300">OECD Programme for International Student Assessment (PISA) 2022</p>
+              <p className="text-gray-400 text-sm mt-2">All data and visualizations are based on official PISA 2022 results</p>
             </div>
           </div>
           <div className="border-t border-gray-700 mt-6 pt-6 text-sm text-gray-400">

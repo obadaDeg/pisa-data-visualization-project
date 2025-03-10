@@ -1,5 +1,6 @@
 dataset/
 pisa_cleaned.csv
+outputs/cleaning/pisa_cleaned.csv
 # Logs
 logs
 *.log
