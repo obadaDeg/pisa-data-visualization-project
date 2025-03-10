@@ -65,7 +65,6 @@ This repository contains the PISA Data Visualization Project, which involves dat
 
 ### Main Analysis Files
 - **Data Visualization Jupyter Notebook**: `data_visualization.ipynb`
-- **Testing Jupyter Notebook**: `testing.ipynb`
 - **Data Processing Script**: `data_visualization.py`
 
 ### Project Summary
