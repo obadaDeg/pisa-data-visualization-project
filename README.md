@@ -80,7 +80,7 @@ The analysis seeks to answer the following questions:
 - The impact of school factors appears to be somewhat independent of socioeconomic status
 - Student sense of belonging correlates positively with academic achievement
 
-## Interactive Dashboard
+## Interactive Dashboard (Still in Development)
 
 The repository includes an interactive dashboard built with React that visualizes key findings from the analysis. The dashboard offers:
 
