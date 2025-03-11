@@ -1,2 +1,2 @@
-Original rows,Rows after cleaning,Rows removed,Percentage removed,Missing values before,Missing values after,Variables modified,New variables created
-613744,600169,13575,2.2118342501107953,600369,18601,14,8
+Original rows,Rows after cleaning,Rows removed,Percentage removed,Missing values after,Variables modified,New variables created
+613744,600169,13575,2.2118342501107953,18601,14,8

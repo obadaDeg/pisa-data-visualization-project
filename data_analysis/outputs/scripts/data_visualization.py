@@ -53,7 +53,7 @@
 # 
 # This notebook demonstrates not only the technical aspects of working with large educational datasets but also provides substantive insights into global patterns of educational achievement.
 
-# In[44]:
+# In[92]:
 
 
 import pandas as pd
@@ -77,51 +77,51 @@ from scipy import stats
 
 
 
-# In[45]:
+# In[93]:
 
 
 # csv_file = "dataset/pisa.csv"
 # df.to_csv(csv_file, index=False)
 
 
-# In[46]:
+# In[94]:
 
 
 student_df = pd.read_csv("dataset/pisa.csv")
 student_df.shape
 
 
-# In[47]:
+# In[ ]:
 
 
 student_df.info()
 
 
-# In[48]:
+# In[ ]:
 
 
 student_df.describe().to_csv("outputs/pisa_describe.csv")
 
 
-# In[49]:
+# In[ ]:
 
 
 student_df.describe().info()
 
 
-# In[50]:
+# In[ ]:
 
 
 student_df.head()
 
 
-# In[51]:
+# In[ ]:
 
 
 student_df['ST004D01T'].value_counts()
 
 
-# In[52]:
+# In[ ]:
 
 
 # textual_columns = student_df.select_dtypes(include=['object']).columns
@@ -129,13 +129,13 @@ student_df['ST004D01T'].value_counts()
 # textual_columns, numerical_columns
 
 
-# In[53]:
+# In[ ]:
 
 
 # student_df[textual_columns].head()
 
 
-# In[54]:
+# In[ ]:
 
 
 # student_df['CNT'].value_counts()
@@ -143,7 +143,7 @@ student_df['ST004D01T'].value_counts()
 # student_df['CNT'] = student_df['CNT'].astype('category')
 
 
-# In[55]:
+# In[ ]:
 
 
 # student_df['CYC'].value_counts()
@@ -151,13 +151,13 @@ student_df['ST004D01T'].value_counts()
 # # student_df['CNT'] = student_df['CNT'].astype('category')
 
 
-# In[56]:
+# In[ ]:
 
 
 # student_df['STRATUM'].value_counts()
 
 
-# In[57]:
+# In[ ]:
 
 
 def memory_usage(pandas_obj):
@@ -170,7 +170,7 @@ def memory_usage(pandas_obj):
     return usage_mb
 
 
-# In[58]:
+# In[ ]:
 
 
 def optimize_floats(df):
@@ -185,7 +185,7 @@ def optimize_floats(df):
     return df
 
 
-# In[59]:
+# In[ ]:
 
 
 def optimize_ints(df):
@@ -199,7 +199,7 @@ def optimize_ints(df):
     return df
 
 
-# In[60]:
+# In[ ]:
 
 
 def optimize_categorical(df, categorical_threshold=0.5, excluded_cols=None):
@@ -229,7 +229,7 @@ def optimize_categorical(df, categorical_threshold=0.5, excluded_cols=None):
     return df
 
 
-# In[61]:
+# In[ ]:
 
 
 def optimize_known_pisa_columns(df):
@@ -261,7 +261,7 @@ def optimize_known_pisa_columns(df):
     return df
 
 
-# In[62]:
+# In[ ]:
 
 
 # def read_pisa_in_chunks(filepath, chunksize=100000, optimize=True, output_file=None):
@@ -351,7 +351,7 @@ def optimize_known_pisa_columns(df):
 #         return df
 
 
-# In[63]:
+# In[ ]:
 
 
 student_df = optimize_floats(student_df)
@@ -363,7 +363,7 @@ student_df = optimize_known_pisa_columns(student_df)
 student_df.info()
 
 
-# In[64]:
+# In[ ]:
 
 
 # input_file = "dataset/pisa.csv"
@@ -399,61 +399,72 @@ student_df.info()
 #         print(f"{dtype_name}: {usage:.2f} MB")
 
 
-# In[65]:
+# In[ ]:
 
 
+import os
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.impute import KNNImputer
+from sklearn.linear_model import LinearRegression
+
+# Create output directory
 os.makedirs('outputs/cleaning', exist_ok=True)
 
-def clean_pisa_data(df, save_path=None, inplace=True):
+def check_duplicates(df, id_column='CNTSTUID'):
     """
-    Comprehensive data cleaning for PISA dataset that modifies the original dataset
+    Check and remove duplicate student IDs
     
     Parameters:
     -----------
     df : pandas DataFrame
-        The raw PISA dataset
-    save_path : str, optional
-        Path to save the cleaned dataset
-    inplace : bool, default=True
-        Whether to modify the original DataFrame or return a copy
+        The PISA dataset
+    id_column : str, default='CNTSTUID'
+        Column containing unique student identifiers
         
     Returns:
     --------
     pandas DataFrame
-        The cleaned PISA dataset (same as input if inplace=True)
+        DataFrame with duplicates removed
     """
-    if not inplace:
-        df = df.copy()
-    
-    print(f"Starting data cleaning process on DataFrame with shape: {df.shape}")
-    original_size = len(df)
-    
-    # Step 1: Check for duplicate student IDs
-    print("\nStep 1: Checking for duplicate student IDs...")
-    if 'CNTSTUID' in df.columns:
-        duplicate_ids = df['CNTSTUID'].duplicated().sum()
+    print(f"\nChecking for duplicate student IDs in column '{id_column}'...")
+    if id_column in df.columns:
+        duplicate_ids = df[id_column].duplicated().sum()
         if duplicate_ids > 0:
             print(f"Found {duplicate_ids} duplicate student IDs. Removing duplicates.")
-            df.drop_duplicates(subset='CNTSTUID', keep='first', inplace=True)
+            df = df.drop_duplicates(subset=id_column, keep='first')
         else:
             print("No duplicate student IDs found.")
     else:
-        print("Warning: CNTSTUID column not found. Skipping duplicate check.")
+        print(f"Warning: {id_column} column not found. Skipping duplicate check.")
     
-    # Step 2: Handle missing values in key variables
-    print("\nStep 2: Handling missing values in key variables...")
+    return df
+
+def analyze_missing_values(df, key_variables):
+    """
+    Analyze and report missing values in key variables
     
-    # List key variables for different analyses
-    key_demographics = ['AGE', 'GRADE', 'ST004D01T', 'IMMIG']
-    key_performance = ['PV1MATH', 'PV1READ', 'PV1SCIE']
-    key_ses = ['ESCS', 'HOMEPOS', 'HISCED']
-    key_school = ['SCHSUST', 'DISCLIM', 'TEACHSUP', 'BELONG']
+    Parameters:
+    -----------
+    df : pandas DataFrame
+        The PISA dataset
+    key_variables : list
+        List of key variables to analyze
+        
+    Returns:
+    --------
+    pandas DataFrame
+        DataFrame with missing value report
+    """
+    print("\nAnalyzing missing values in key variables...")
     
-    all_key_vars = key_demographics + key_performance + key_ses + key_school
-    existing_key_vars = [col for col in all_key_vars if col in df.columns]
+    # Filter for variables that exist in the dataset
+    existing_vars = [col for col in key_variables if col in df.columns]
     
-    # Check missing values in key variables
-    missing_counts = df[existing_key_vars].isnull().sum()
+    # Check missing values
+    missing_counts = df[existing_vars].isnull().sum()
     missing_percentages = (missing_counts / len(df)) * 100
     
     # Create DataFrame for missing values report
@@ -470,7 +481,7 @@ def clean_pisa_data(df, save_path=None, inplace=True):
     
     # Create visualization of missing values
     plt.figure(figsize=(12, 8))
-    sns.heatmap(df[existing_key_vars].isnull(), cbar=False, yticklabels=False,
+    sns.heatmap(df[existing_vars].isnull(), cbar=False, yticklabels=False,
                 cmap='viridis')
     plt.title('Missing Values in Key Variables')
     plt.xticks(rotation=90)
@@ -478,98 +489,259 @@ def clean_pisa_data(df, save_path=None, inplace=True):
     plt.savefig('outputs/cleaning/missing_values_heatmap.png')
     plt.close()
     
-    # Step 3: Handle specific cases of missingness - with more aggressive handling
-    print("\nStep 3: Handling specific missing value patterns...")
+    return existing_vars, missing_report
+
+def handle_missing_performance(df, perf_variables):
+    """
+    Remove students with missing performance data
     
-    # For performance variables (PVs), we cannot impute - students must have scores
-    perf_vars = [col for col in key_performance if col in df.columns]
-    missing_perf = df[perf_vars].isnull().any(axis=1)
+    Parameters:
+    -----------
+    df : pandas DataFrame
+        The PISA dataset
+    perf_variables : list
+        List of performance variables
+        
+    Returns:
+    --------
+    pandas DataFrame
+        DataFrame with rows containing missing performance removed
+    """
+    print("\nHandling missing performance data...")
+    
+    # Filter for performance variables that exist in dataset
+    existing_perf_vars = [col for col in perf_variables if col in df.columns]
+    
+    if not existing_perf_vars:
+        print("No performance variables found. Skipping.")
+        return df
+    
+    # Remove rows with missing performance scores
+    missing_perf = df[existing_perf_vars].isnull().any(axis=1)
     if missing_perf.sum() > 0:
         print(f"Removing {missing_perf.sum()} students with missing performance scores.")
-        df.drop(df[missing_perf].index, inplace=True)
+        df = df.drop(df[missing_perf].index)
+    else:
+        print("No missing performance data found.")
         
-    # Remove rows with excessive missing values (more than 50% of key variables)
-    key_vars_present = df[existing_key_vars].count(axis=1)
-    min_vars_required = len(existing_key_vars) * 0.5
-    excessive_missing = key_vars_present < min_vars_required
-    if excessive_missing.sum() > 0:
-        print(f"Removing {excessive_missing.sum()} students with more than 50% of key variables missing.")
-        df.drop(df[excessive_missing].index, inplace=True)
+    return df
+
+def remove_excessive_missing(df, key_variables, threshold=0.5):
+    """
+    Remove rows with excessive missing values
     
-    # For categorical demographic variables, replace with most frequent value
-    for col in key_demographics:
-        if col in df.columns and df[col].isnull().sum() > 0:
-            missing_count = df[col].isnull().sum()
-            
+    Parameters:
+    -----------
+    df : pandas DataFrame
+        The PISA dataset
+    key_variables : list
+        List of key variables to check
+    threshold : float, default=0.5
+        Minimum proportion of key variables required
+        
+    Returns:
+    --------
+    pandas DataFrame
+        DataFrame with rows containing excessive missing values removed
+    """
+    print("\nRemoving rows with excessive missing values...")
+    
+    # Filter for variables that exist in the dataset
+    existing_vars = [col for col in key_variables if col in df.columns]
+    
+    # Count non-missing values for each row
+    key_vars_present = df[existing_vars].count(axis=1)
+    min_vars_required = len(existing_vars) * threshold
+    excessive_missing = key_vars_present < min_vars_required
+    
+    if excessive_missing.sum() > 0:
+        print(f"Removing {excessive_missing.sum()} students with more than {int((1-threshold)*100)}% of key variables missing.")
+        df = df.drop(df[excessive_missing].index)
+    else:
+        print("No rows with excessive missing values found.")
+        
+    return df
+
+def impute_demographic_variables(df, demo_variables):
+    """
+    Impute missing values in demographic variables
+    
+    Parameters:
+    -----------
+    df : pandas DataFrame
+        The PISA dataset
+    demo_variables : list
+        List of demographic variables to impute
+        
+    Returns:
+    --------
+    pandas DataFrame
+        DataFrame with imputed demographic variables
+    """
+    print("\nImputing missing values in demographic variables...")
+    
+    # Filter for variables that exist in the dataset
+    existing_demo_vars = [col for col in demo_variables if col in df.columns]
+    
+    for col in existing_demo_vars:
+        missing_count = df[col].isnull().sum()
+        if missing_count > 0:
             # For categorical variables with few unique values
             if df[col].dtype == 'category' or df[col].nunique() < 10:
                 most_frequent = df[col].mode()[0]
-                df[col].fillna(most_frequent, inplace=True)
+                df[col] = df[col].fillna(most_frequent)
                 print(f"Filled {missing_count} missing values in {col} with most frequent value: {most_frequent}")
             else:
                 # For continuous variables, impute with median
                 median_val = df[col].median()
-                df[col].fillna(median_val, inplace=True)
+                df[col] = df[col].fillna(median_val)
                 print(f"Filled {missing_count} missing values in {col} with median: {median_val}")
+                
+    return df
+
+def impute_ses_variables(df, ses_variables):
+    """
+    Impute missing values in SES variables using KNN or median
     
-    # For SES variables, use more sophisticated imputation
-    if 'ESCS' in df.columns and df['ESCS'].isnull().sum() > 0:
-        ses_vars = [col for col in key_ses if col in df.columns and col != 'ESCS']
-        missing_count = df['ESCS'].isnull().sum()
+    Parameters:
+    -----------
+    df : pandas DataFrame
+        The PISA dataset
+    ses_variables : list
+        List of SES variables
         
-        if len(ses_vars) > 0:
-            # Try KNN imputation if we have related variables
-            try:
-                from sklearn.impute import KNNImputer
-                
-                # Prepare data for imputation
-                impute_cols = ses_vars + ['ESCS']
-                impute_df = df[impute_cols].copy()
-                
-                # Create KNN imputer
-                imputer = KNNImputer(n_neighbors=5)
-                imputed_values = imputer.fit_transform(impute_df)
-                
-                # Update only missing values
-                df.loc[df['ESCS'].isnull(), 'ESCS'] = imputed_values[df['ESCS'].isnull(), -1]
-                print(f"Imputed {missing_count} missing ESCS values using KNN imputation.")
-            except:
-                # Fall back to simple median imputation if KNN fails
-                median_escs = df['ESCS'].median()
-                df['ESCS'].fillna(median_escs, inplace=True)
-                print(f"Imputed {missing_count} missing ESCS values with median: {median_escs}")
-        else:
-            # If no related variables, use median imputation
+    Returns:
+    --------
+    pandas DataFrame
+        DataFrame with imputed SES variables
+    """
+    print("\nImputing missing values in SES variables...")
+    
+    if 'ESCS' not in df.columns:
+        print("ESCS variable not found. Skipping SES imputation.")
+        return df
+    
+    missing_count = df['ESCS'].isnull().sum()
+    if missing_count == 0:
+        print("No missing values in ESCS. Skipping SES imputation.")
+        return df
+    
+    # Filter for other SES variables that exist in dataset
+    other_ses_vars = [col for col in ses_variables if col in df.columns and col != 'ESCS']
+    
+    if len(other_ses_vars) > 0:
+        # Try KNN imputation if we have related variables
+        try:
+            # Prepare data for imputation
+            impute_cols = other_ses_vars + ['ESCS']
+            impute_df = df[impute_cols].copy()
+            
+            # Create KNN imputer
+            imputer = KNNImputer(n_neighbors=5)
+            imputed_values = imputer.fit_transform(impute_df)
+            
+            # Update only missing values
+            df.loc[df['ESCS'].isnull(), 'ESCS'] = imputed_values[df['ESCS'].isnull(), -1]
+            print(f"Imputed {missing_count} missing ESCS values using KNN imputation.")
+        except Exception as e:
+            # Fall back to simple median imputation if KNN fails
+            print(f"KNN imputation failed: {e}")
             median_escs = df['ESCS'].median()
-            df['ESCS'].fillna(median_escs, inplace=True)
+            df['ESCS'] = df['ESCS'].fillna(median_escs)
             print(f"Imputed {missing_count} missing ESCS values with median: {median_escs}")
+    else:
+        # If no related variables, use median imputation
+        median_escs = df['ESCS'].median()
+        df['ESCS'] = df['ESCS'].fillna(median_escs)
+        print(f"Imputed {missing_count} missing ESCS values with median: {median_escs}")
+        
+    return df
+
+def impute_school_variables(df, school_variables):
+    """
+    Impute missing values in school variables with median
     
-    # For school variables, use median imputation
-    for col in key_school:
-        if col in df.columns and df[col].isnull().sum() > 0:
-            missing_count = df[col].isnull().sum()
-            df[col].fillna(df[col].median(), inplace=True)
+    Parameters:
+    -----------
+    df : pandas DataFrame
+        The PISA dataset
+    school_variables : list
+        List of school variables
+        
+    Returns:
+    --------
+    pandas DataFrame
+        DataFrame with imputed school variables
+    """
+    print("\nImputing missing values in school variables...")
+    
+    # Filter for variables that exist in the dataset
+    existing_school_vars = [col for col in school_variables if col in df.columns]
+    
+    for col in existing_school_vars:
+        missing_count = df[col].isnull().sum()
+        if missing_count > 0:
+            df[col] = df[col].fillna(df[col].median())
             print(f"Filled {missing_count} missing values in {col} with median.")
+            
+    return df
+
+def identify_continuous_variables(df, all_variables):
+    """
+    Identify continuous variables in the dataset
     
-    # Step 4: Detect and handle outliers more aggressively
-    print("\nStep 4: Detecting and handling outliers in key continuous variables...")
-    
+    Parameters:
+    -----------
+    df : pandas DataFrame
+        The PISA dataset
+    all_variables : list
+        List of variables to check
+        
+    Returns:
+    --------
+    list
+        List of identified continuous variables
+    """
     continuous_vars = []
-    for col in existing_key_vars:
-        if df[col].dtype in ['float64', 'float32', 'int64', 'int32']:
-            if df[col].nunique() > 10:  # Simple heuristic for continuous variables
-                continuous_vars.append(col)
     
-    # Report and handle outliers more aggressively (values > 2.5 standard deviations from mean)
+    for col in all_variables:
+        if col in df.columns:
+            if df[col].dtype in ['float64', 'float32', 'int64', 'int32']:
+                if df[col].nunique() > 10:  # Simple heuristic for continuous variables
+                    continuous_vars.append(col)
+                    
+    return continuous_vars
+
+def handle_outliers(df, continuous_vars, perf_vars):
+    """
+    Detect and handle outliers in continuous variables
+    
+    Parameters:
+    -----------
+    df : pandas DataFrame
+        The PISA dataset
+    continuous_vars : list
+        List of continuous variables to check for outliers
+    perf_vars : list
+        List of performance variables to exclude
+        
+    Returns:
+    --------
+    pandas DataFrame, DataFrame
+        DataFrame with handled outliers and outlier report
+    """
+    print("\nDetecting and handling outliers in key continuous variables...")
+    
     outlier_report = {}
+    
     for col in continuous_vars:
         # Skip performance variables (PVs) as their scale is standardized
         if col in perf_vars:
             continue
         
         # Use robust statistics (median and IQR) to detect outliers
-        Q1 = df[col].quantile(0.05)
-        Q3 = df[col].quantile(0.95)
+        Q1 = df[col].quantile(0.25)
+        Q3 = df[col].quantile(0.75)
         IQR = Q3 - Q1
         
         # Define bounds using both methods and use the more conservative one
@@ -622,23 +794,63 @@ def clean_pisa_data(df, save_path=None, inplace=True):
         outlier_df.to_csv('outputs/cleaning/outlier_report.csv')
     else:
         print("No outliers detected in continuous variables.")
+        
+    return df, outlier_df
+
+def handle_age_outliers(df):
+    """
+    Handle age outliers specific to PISA target population
     
-    # Handle special case for age - remove implausible values and tighten range for PISA
-    if 'AGE' in df.columns:
-        # PISA targets 15-year-olds, so restrict to a narrower range for main analysis
-        # For primary analysis, keep only students within 14-16 age range
-        age_outliers = (df['AGE'] < 14) | (df['AGE'] > 16.5)
-        if age_outliers.sum() > 0:
-            print(f"Removing {age_outliers.sum()} students outside the target age range (14-16.5).")
-            df.drop(df[age_outliers].index, inplace=True)
+    Parameters:
+    -----------
+    df : pandas DataFrame
+        The PISA dataset
+        
+    Returns:
+    --------
+    pandas DataFrame
+        DataFrame with age outliers removed
+    """
+    print("\nHandling age outliers...")
     
-    # Step 5: Standardize categorical variables 
-    print("\nStep 5: Standardizing categorical variables...")
+    if 'AGE' not in df.columns:
+        print("AGE variable not found. Skipping age outlier handling.")
+        return df
     
-    cat_vars = [col for col in existing_key_vars 
-                if col not in continuous_vars and df[col].dtype != 'category']
+    # PISA targets 15-year-olds, so restrict to a narrower range for main analysis
+    # For primary analysis, keep only students within 14-16 age range
+    age_outliers = (df['AGE'] < 14) | (df['AGE'] > 16.5)
     
-    for col in cat_vars:
+    if age_outliers.sum() > 0:
+        print(f"Removing {age_outliers.sum()} students outside the target age range (14-16.5).")
+        df = df.drop(df[age_outliers].index)
+    else:
+        print("No age outliers found.")
+        
+    return df
+
+def standardize_categorical_vars(df, cat_vars):
+    """
+    Standardize categorical variables and handle rare categories
+    
+    Parameters:
+    -----------
+    df : pandas DataFrame
+        The PISA dataset
+    cat_vars : list
+        List of categorical variables to standardize
+        
+    Returns:
+    --------
+    pandas DataFrame
+        DataFrame with standardized categorical variables
+    """
+    print("\nStandardizing categorical variables...")
+    
+    # Filter for categorical variables in the dataset
+    existing_cat_vars = [col for col in cat_vars if col in df.columns]
+    
+    for col in existing_cat_vars:
         if df[col].nunique() < 50:
             # Get value counts to identify potential issues
             val_counts = df[col].value_counts()
@@ -659,9 +871,24 @@ def clean_pisa_data(df, save_path=None, inplace=True):
                 
                 # Replace rare categories with 'Other'
                 df.loc[df[col].isin(rare_cats), col] = 'Other'
+                
+    return df
+
+def create_derived_variables(df):
+    """
+    Create derived variables that might be useful for analysis
     
-    # Step 6: Create derived variables that might be useful
-    print("\nStep 6: Creating derived variables...")
+    Parameters:
+    -----------
+    df : pandas DataFrame
+        The PISA dataset
+        
+    Returns:
+    --------
+    pandas DataFrame
+        DataFrame with added derived variables
+    """
+    print("\nCreating derived variables...")
     
     # Create age groups
     if 'AGE' in df.columns:
@@ -707,26 +934,60 @@ def clean_pisa_data(df, save_path=None, inplace=True):
             high_cutoff = bins[4]  # Level 4 cutoff
             df[f"{pv}_HIGH"] = (df[pv] >= high_cutoff).astype(int)
             print(f"Created {pv}_HIGH indicator for scores ≥ {high_cutoff} (Level 4+).")
+            
+    return df
+
+def check_extreme_performance(df, perf_vars):
+    """
+    Check for extreme performance values and remove them
     
-    # Step 7: Final validation and additional checks
-    print("\nStep 7: Final data validation...")
+    Parameters:
+    -----------
+    df : pandas DataFrame
+        The PISA dataset
+    perf_vars : list
+        List of performance variables to check
+        
+    Returns:
+    --------
+    pandas DataFrame
+        DataFrame with extreme performance values removed
+    """
+    print("\nChecking for extreme performance values...")
     
-    # Check for any remaining extreme values in performance variables
-    for pv in perf_vars:
+    # Filter for performance variables in the dataset
+    existing_perf_vars = [col for col in perf_vars if col in df.columns]
+    
+    for pv in existing_perf_vars:
         # Performance variables in PISA are standardized with mean ~500 and SD ~100
         # Extreme values outside 100-900 range are suspicious
         extreme_scores = (df[pv] < 100) | (df[pv] > 900)
+        
         if extreme_scores.sum() > 0:
             print(f"WARNING: Found {extreme_scores.sum()} extreme values in {pv}.")
-            # Remove these extreme values
             print(f"Removing {extreme_scores.sum()} rows with extreme {pv} values.")
-            df.drop(df[extreme_scores].index, inplace=True)
+            df = df.drop(df[extreme_scores].index)
+            
+    return df
+
+def check_implausible_relationships(df):
+    """
+    Check for implausible relationships between ESCS and performance
     
-    # Check for any remaining implausible relationships
-    # For example, very high performance with very low ESCS or vice versa
+    Parameters:
+    -----------
+    df : pandas DataFrame
+        The PISA dataset
+        
+    Returns:
+    --------
+    pandas DataFrame
+        DataFrame with flagged implausible relationships
+    """
+    print("\nChecking for implausible relationships...")
+    
     if 'ESCS' in df.columns and 'PV1MATH' in df.columns:
         # Calculate residuals from linear regression
-        from sklearn.linear_model import LinearRegression
         X = df[['ESCS']]
         y = df['PV1MATH']
         reg = LinearRegression().fit(X, y)
@@ -735,22 +996,57 @@ def clean_pisa_data(df, save_path=None, inplace=True):
         # Flag extreme residuals (± 3 standard deviations)
         residual_std = df['MATH_RESIDUAL'].std()
         extreme_residuals = np.abs(df['MATH_RESIDUAL']) > 3 * residual_std
+        
         if extreme_residuals.sum() > 0:
             print(f"Flagged {extreme_residuals.sum()} rows with extreme ESCS-Math relationships.")
             # Add flag variable but don't remove
             df['EXTREME_RESIDUAL'] = extreme_residuals.astype(int)
             print("Added 'EXTREME_RESIDUAL' flag for these observations.")
+    else:
+        print("ESCS or PV1MATH variables not found. Skipping relationship check.")
+        
+    return df
+
+def create_data_reports(df, continuous_vars, cat_vars, orig_size):
+    """
+    Create final data quality reports
     
-    # Step 8: Create final report
-    print("\nStep 8: Creating final dataset report...")
+    Parameters:
+    -----------
+    df : pandas DataFrame
+        The cleaned PISA dataset
+    continuous_vars : list
+        List of continuous variables
+    cat_vars : list
+        List of categorical variables
+    orig_size : int
+        Original size of the dataset before cleaning
+        
+    Returns:
+    --------
+    dict
+        Dictionary with cleaning summary statistics
+    """
+    print("\nCreating final dataset reports...")
     
-    rows_removed = original_size - len(df)
+    # Create cleaning summary report
+    rows_removed = orig_size - len(df)
+    
+    # Define key variables for reporting
+    key_demographics = ['AGE', 'GRADE', 'ST004D01T', 'IMMIG']
+    key_performance = ['PV1MATH', 'PV1READ', 'PV1SCIE']
+    key_ses = ['ESCS', 'HOMEPOS', 'HISCED']
+    key_school = ['SCHSUST', 'DISCLIM', 'TEACHSUP', 'BELONG']
+    
+    all_key_vars = key_demographics + key_performance + key_ses + key_school
+    existing_key_vars = [col for col in all_key_vars if col in df.columns]
+    
+    # Calculate summary statistics
     cleaning_report = {
-        'Original rows': original_size,
+        'Original rows': orig_size,
         'Rows after cleaning': len(df),
         'Rows removed': rows_removed,
-        'Percentage removed': (rows_removed / original_size) * 100,
-        'Missing values before': missing_counts.sum(),
+        'Percentage removed': (rows_removed / orig_size) * 100,
         'Missing values after': df[existing_key_vars].isnull().sum().sum(),
         'Variables modified': len(existing_key_vars),
         'New variables created': sum(['AGE_GROUP' in df.columns, 
@@ -770,12 +1066,13 @@ def clean_pisa_data(df, save_path=None, inplace=True):
     # Save the cleaning report
     pd.DataFrame([cleaning_report]).to_csv('outputs/cleaning/cleaning_summary.csv', index=False)
     
-    # Create a data quality report
     # Sample head of the dataset
     df.head().to_csv('outputs/cleaning/sample_head.csv')
     
-    # Summary statistics
-    df[continuous_vars].describe().to_csv('outputs/cleaning/continuous_vars_summary.csv')
+    # Summary statistics for continuous variables
+    existing_cont_vars = [col for col in continuous_vars if col in df.columns]
+    if existing_cont_vars:
+        df[existing_cont_vars].describe().to_csv('outputs/cleaning/continuous_vars_summary.csv')
     
     # Value counts for categorical variables
     cat_vars_extended = cat_vars + ['AGE_GROUP', 'ESCS_QUINTILE', 'PV1MATH_LEVEL', 'PV1READ_LEVEL', 'PV1SCIE_LEVEL']
@@ -784,8 +1081,88 @@ def clean_pisa_data(df, save_path=None, inplace=True):
     for var in cat_vars_extended:
         if var in df.columns:
             df[var].value_counts().to_csv(f'outputs/cleaning/{var}_distribution.csv')
+            
+    return cleaning_report
+
+def clean_pisa_data(df, save_path=None, inplace=True):
+    """
+    Comprehensive data cleaning for PISA dataset by calling modular functions
     
-    # Save the cleaned dataset
+    Parameters:
+    -----------
+    df : pandas DataFrame
+        The raw PISA dataset
+    save_path : str, optional
+        Path to save the cleaned dataset
+    inplace : bool, default=True
+        Whether to modify the original DataFrame or return a copy
+        
+    Returns:
+    --------
+    pandas DataFrame
+        The cleaned PISA dataset (same as input if inplace=True)
+    """
+    if not inplace:
+        df = df.copy()
+    
+    print(f"Starting data cleaning process on DataFrame with shape: {df.shape}")
+    original_size = len(df)
+    
+    # Define key variables for different analyses
+    key_demographics = ['AGE', 'GRADE', 'ST004D01T', 'IMMIG']
+    key_performance = ['PV1MATH', 'PV1READ', 'PV1SCIE']
+    key_ses = ['ESCS', 'HOMEPOS', 'HISCED']
+    key_school = ['SCHSUST', 'DISCLIM', 'TEACHSUP', 'BELONG']
+    all_key_vars = key_demographics + key_performance + key_ses + key_school
+    
+    # Step 1: Check for duplicate student IDs
+    df = check_duplicates(df)
+    
+    # Step 2: Analyze missing values
+    existing_key_vars, missing_report = analyze_missing_values(df, all_key_vars)
+    
+    # Step 3: Handle missing values in performance variables (remove rows)
+    df = handle_missing_performance(df, key_performance)
+    
+    # Step 4: Remove rows with excessive missing values
+    df = remove_excessive_missing(df, existing_key_vars)
+    
+    # Step 5: Impute missing values in demographic variables
+    df = impute_demographic_variables(df, key_demographics)
+    
+    # Step 6: Impute missing values in SES variables
+    df = impute_ses_variables(df, key_ses)
+    
+    # Step 7: Impute missing values in school variables
+    df = impute_school_variables(df, key_school)
+    
+    # Step 8: Identify continuous variables
+    continuous_vars = identify_continuous_variables(df, existing_key_vars)
+    
+    # Step 9: Handle outliers in continuous variables
+    df, outlier_report = handle_outliers(df, continuous_vars, key_performance)
+    
+    # Step 10: Handle age outliers
+    df = handle_age_outliers(df)
+    
+    # Step 11: Standardize categorical variables
+    cat_vars = [col for col in existing_key_vars 
+               if col not in continuous_vars and df[col].dtype != 'category']
+    df = standardize_categorical_vars(df, cat_vars)
+    
+    # Step 12: Create derived variables
+    df = create_derived_variables(df)
+    
+    # Step 13: Check for extreme performance values
+    df = check_extreme_performance(df, key_performance)
+    
+    # Step 14: Check for implausible relationships
+    df = check_implausible_relationships(df)
+    
+    # Step 15: Create data reports
+    cleaning_report = create_data_reports(df, continuous_vars, cat_vars, original_size)
+    
+    # Step 16: Save the cleaned dataset
     if save_path:
         print(f"\nSaving cleaned dataset to {save_path}")
         df.to_csv(save_path, index=False)
@@ -794,19 +1171,19 @@ def clean_pisa_data(df, save_path=None, inplace=True):
     return df
 
 
-# In[66]:
+# In[ ]:
 
 
 student_df = clean_pisa_data(student_df, save_path='outputs/pisa_cleaned.csv')
 
 
-# In[67]:
+# In[ ]:
 
 
 student_df.info()
 
 
-# In[68]:
+# In[ ]:
 
 
 student_df['ST004D01T'].value_counts()
@@ -824,7 +1201,7 @@ student_df['ST004D01T'].value_counts()
 
 # For the explanatory portion, I'll select 3-5 key insights from the exploration and create polished visualizations that effectively communicate these findings.
 
-# In[69]:
+# In[ ]:
 
 
 key_vars = {
@@ -835,7 +1212,7 @@ key_vars = {
 }
 
 
-# In[70]:
+# In[ ]:
 
 
 for category, variables in key_vars.items():
@@ -849,7 +1226,7 @@ for category, variables in key_vars.items():
 
 # ### 4.1 Performance Distributions
 
-# In[71]:
+# In[ ]:
 
 
 def plot_performance_distributions(df):
@@ -885,7 +1262,7 @@ plot_performance_distributions(student_df)
 # ### 4.2 Socioeconomic Status Analysis
 # 
 
-# In[72]:
+# In[ ]:
 
 
 def plot_escs_distribution(df):
@@ -921,7 +1298,7 @@ plot_escs_distribution(student_df)
 
 # ### 4.3 Gender Analysis
 
-# In[73]:
+# In[ ]:
 
 
 def plot_gender_distribution(df):
@@ -958,18 +1335,26 @@ plot_gender_distribution(student_df)
 
 # ### 4.4 Country-Level Analysis
 
-# In[74]:
+# In[ ]:
 
 
 def plot_top_countries_math(df, top_n=15):
     """Plot bar chart of top countries by math performance"""
     # Calculate mean math score by country
     country_math = df.groupby('CNT')['PV1MATH'].mean().sort_values(ascending=False)
+    
+    # Select only the top n countries
     top_countries = country_math.head(top_n)
     
+    # Create figure with specific size
     plt.figure(figsize=(12, 8))
     
-    sns.barplot(x=top_countries.values, y=top_countries.index)
+    # Use matplotlib's barh for horizontal bar chart instead of seaborn
+    plt.barh(y=range(len(top_countries)), width=top_countries.values, color='steelblue')
+    
+    # Set y-ticks to be the country codes
+    plt.yticks(range(len(top_countries)), top_countries.index)
+    
     plt.title(f'Top {top_n} Countries by Mathematics Performance')
     plt.xlabel('Average Math Score')
     plt.ylabel('Country')
@@ -977,7 +1362,7 @@ def plot_top_countries_math(df, top_n=15):
     # Add global average line
     global_avg = df['PV1MATH'].mean()
     plt.axvline(global_avg, color='red', linestyle='--')
-    plt.text(global_avg + 5, 1, f'Global Average: {global_avg:.1f}', color='red')
+    plt.text(global_avg + 5, len(top_countries)/2, f'Global Average: {global_avg:.1f}', color='red')
     
     plt.tight_layout()
     plt.savefig('outputs/plots/top_countries_math.png')
@@ -985,12 +1370,9 @@ def plot_top_countries_math(df, top_n=15):
 
 # Execute the function
 plot_top_countries_math(student_df)
-# Observations:
-# - Comment on which countries perform best
-# - Note any patterns or regional trends
 
 
-# In[75]:
+# In[ ]:
 
 
 # =========================================================
@@ -1033,7 +1415,7 @@ plot_escs_math_relationship(student_df)
 
 
 
-# In[76]:
+# In[ ]:
 
 
 # BOX PLOT: Performance by Gender
@@ -1067,7 +1449,7 @@ plot_performance_by_gender(student_df)
 # - Note which differences appear most pronounced
 
 
-# In[77]:
+# In[ ]:
 
 
 # BOX PLOT: Performance by Immigrant Status
@@ -1103,7 +1485,7 @@ if 'IMMIG' in student_df.columns:
 
 # ### 4.5 Advanced Analysis: Multiple Factors
 
-# In[78]:
+# In[ ]:
 
 
 # HEATMAP: Correlation between key variables
@@ -1141,7 +1523,7 @@ plot_correlation_heatmap(student_df)
 # - Note any surprising patterns
 
 
-# In[79]:
+# In[ ]:
 
 
 # =========================================================
@@ -1197,7 +1579,84 @@ plot_gender_gap_by_country(student_df)
 # - Note directions of the gaps (which gender has advantage in which countries)
 
 
-# In[80]:
+# In[ ]:
+
+
+def plot_overall_gender_difference(df):
+    """Plot overall gender differences across all subjects"""
+    # Map gender codes to labels
+    gender_map = {1: 'Female', 2: 'Male'}
+    df['gender'] = df['ST004D01T'].map(gender_map)
+    
+    # Calculate mean performance by gender across all subjects
+    gender_perf = df.groupby('gender')[['PV1MATH', 'PV1READ', 'PV1SCIE']].mean().reset_index()
+    
+    # Reshape data for better plotting
+    plot_data = pd.melt(gender_perf, 
+                        id_vars=['gender'],
+                        value_vars=['PV1MATH', 'PV1READ', 'PV1SCIE'],
+                        var_name='Subject', 
+                        value_name='Score')
+    
+    # Rename subjects for better readability
+    subject_map = {
+        'PV1MATH': 'Mathematics',
+        'PV1READ': 'Reading',
+        'PV1SCIE': 'Science'
+    }
+    plot_data['Subject'] = plot_data['Subject'].map(subject_map)
+    
+    # Create the plot
+    plt.figure(figsize=(10, 6))
+    
+    # Use barplot with hue for gender
+    ax = sns.barplot(x='Subject', y='Score', hue='gender', data=plot_data, palette='Set1')
+    
+    # Add value labels on top of each bar
+    for p in ax.patches:
+        ax.annotate(f'{p.get_height():.1f}', 
+                    (p.get_x() + p.get_width() / 2., p.get_height()), 
+                    ha='center', va='bottom', fontsize=10)
+    
+    # Calculate and display gender gaps
+    for subject in subject_map.values():
+        male_score = plot_data[(plot_data['Subject'] == subject) & (plot_data['gender'] == 'Male')]['Score'].values[0]
+        female_score = plot_data[(plot_data['Subject'] == subject) & (plot_data['gender'] == 'Female')]['Score'].values[0]
+        gap = male_score - female_score
+        
+        # Position the text in the middle of the bars
+        x_pos = list(subject_map.values()).index(subject)
+        y_pos = (male_score + female_score) / 2
+        
+        # Add the gap text with arrow
+        gap_text = f"{gap:.1f}" if gap >= 0 else f"{gap:.1f}"
+        plt.annotate(gap_text, xy=(x_pos, y_pos), xytext=(x_pos, y_pos + 20),
+                    ha='center', va='center',
+                    arrowprops=dict(arrowstyle='->',
+                                   color='black' if gap >= 0 else 'red'),
+                    fontweight='bold')
+    
+    # Set plot title and labels
+    plt.title('Overall Gender Differences in Academic Performance', fontsize=14)
+    plt.ylabel('Average Score', fontsize=12)
+    plt.xlabel('', fontsize=12)  # Empty label for x-axis
+    
+    # Add a note about the gap arrows
+    plt.figtext(0.5, 0.01, 'Note: Arrows show the gender gap (Male score - Female score)', 
+               ha='center', fontsize=10, style='italic')
+    
+    # Customize legend
+    plt.legend(title='Gender')
+    
+    plt.tight_layout(rect=[0, 0.03, 1, 0.97])  # Adjust layout to make room for the note
+    plt.savefig('outputs/plots/overall_gender_difference.png')
+    plt.show()
+
+# Execute the function
+plot_overall_gender_difference(student_df)
+
+
+# In[ ]:
 
 
 # FACET PLOT: Relationship between ESCS and Math performance by immigrant status
@@ -1332,7 +1791,7 @@ if 'IMMIG' in student_df.columns:
 # - Note any variations in strength of relationship
 
 
-# In[81]:
+# In[ ]:
 
 
 # SCATTER PLOT with multiple encodings: Performance, ESCS, and School Climate
@@ -1385,7 +1844,7 @@ plot_performance_escs_climate(student_df)
 # - Note how relationships may vary across ESCS quartiles
 
 
-# In[82]:
+# In[ ]:
 
 
 # Part II: Explanatory Data Analysis
@@ -1441,7 +1900,7 @@ def create_country_performance_map(df):
         print("Consider installing geopandas or using an alternative visualization.")
 
 
-# In[83]:
+# In[ ]:
 
 
 def create_escs_impact_visualization(df):
@@ -1490,7 +1949,7 @@ def create_escs_impact_visualization(df):
     plt.show()
 
 
-# In[84]:
+# In[ ]:
 
 
 def create_gender_gap_visualization(df):
@@ -1560,7 +2019,7 @@ def create_gender_gap_visualization(df):
     plt.show()
 
 
-# In[85]:
+# In[ ]:
 
 
 create_escs_impact_visualization(student_df)
@@ -1571,7 +2030,7 @@ create_gender_gap_visualization(student_df)
 
 # ## Research Question Answers
 
-# In[86]:
+# In[ ]:
 
 
 # Question 1: Which countries demonstrate the highest performance across different subject areas in PISA 2022?
